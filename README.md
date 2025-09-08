@@ -1,25 +1,30 @@
 # DeepSeek CLI
 
-DeepSeek CLI is a command-line interface for **chatting with DeepSeek models**, with optional features like running shell commands, reading/editing files, and path autocompletion — all gated by user consent.
-
-DeepSeek CLI 是一個命令列工具，提供 **與 DeepSeek 模型聊天** 的能力，並可選擇性地支援系統指令執行、檔案存取與路徑補全，且所有敏感操作都需要使用者同意。
-
----
-
-## 📖 Documentation / 文檔
-
-- [English Documentation](#english-documentation)
-- [中文文檔](#中文文檔)
+DeepSeek CLI 是一個命令列工具，提供 **與 DeepSeek 模型對話** 的能力，並且內建支援以下功能：
+- **安全授權機制**：執行任何系統指令或檔案讀寫前，都會詢問使用者同意。
+- **聊天模式**：與 DeepSeek 模型直接互動，支援 `deepseek-chat` 與 `deepseek-reasoner`。
+- **檔案與目錄操作**：可使用 `@檔案/資料夾` 或指令（`:edit`、`:open`、`:ls`、`:rm`）來檢視與管理檔案。
+- **系統指令執行**：可直接在 REPL 中輸入 `!命令`，像在終端機中執行指令。
+- **Tab 補全**：支援路徑與檔案名稱的自動補全，提升操作便利性。
 
 ---
 
-## English Documentation
-
-### 🚀 Installation
+## 🚀 安裝方式
 
 ```bash
+# 下載專案
 git clone https://github.com/yourname/deepseek-cli.git
 cd deepseek-cli
-pip install -r requirements.txt
-pip install -e .
 
+# 安裝依賴
+pip install -r requirements.txt
+
+# 開發模式安裝 CLI
+pip install -e .
+```
+
+## 🏁 快速開始
+
+```bash
+deepseek
+```
