@@ -100,7 +100,7 @@ def show_hints(model: str, base_url: str) -> None:
             "  • [bold]:open <path>[/] 只讀開啟（需同意：讀取）\n"
             "  • [bold]:ls <path>[/]   列目錄（需同意：讀取）\n"
             "  • [bold]:rm <path>[/]   刪檔案（需同意：寫入）\n"
-            "離開：exit / quit / :q",
+            "離開：exit / quit / q",
             title=f"Model • {model}   Base • {base_url}",
             border_style="blue",
         )
@@ -128,7 +128,7 @@ def repl_with_tools(cfg: dict) -> None:
             break
         if not s:
             continue
-        if s.lower() in {"exit", "quit", ":q"}:
+        if s.lower() in {"exit", "quit", "q"}:
             break
 
         # @path
