@@ -7,10 +7,8 @@ console = Console()
 def print_help() -> None:
     help_text = """
  Basics:
- Add context: Use @ to specify files for context (e.g., @src/myFile.ts) to target specific files or folders.
- Shell mode: Execute shell commands via ! (e.g., !npm run start) or use natural language (e.g. start server).
 
- Commands:
+  Commands:
   /about - show version info
   /clear - clear the screen and conversation history
   /help - for help on deepseek-cli
