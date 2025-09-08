@@ -24,32 +24,14 @@ def print_help() -> None:
 
 def print_about() -> None:
     about_text = """
- CLI Version                  0.1.0
- Git Commit                   N/A
+ Version                  0.3.0
  Model                        deepseek-chat
- Sandbox                      no sandbox
- OS                           darwin
- Auth Method                  api_key
+ Auth Method                  api_key,base_url
 """
     console.print(Panel(Text(about_text.strip(), style="white"), title="About DeepSeek CLI", border_style="blue"))
 
 def print_quit_summary() -> None:
     summary_text = """
  Agent powering down. Goodbye!
-
- Interaction Summary
- Session ID:                 N/A
- Tool Calls:                 0 ( ✓ 0 x 0 )
- Success Rate:               0.0%
-
- Performance
- Wall Time:                  0m 0s
- Agent Active:               0s
-   » API Time:               0s (0.0%)
-   » Tool Time:              0s (0.0%)
-
- Model Usage                  Reqs   Input Tokens  Output Tokens
- ───────────────────────────────────────────────────────────────
- deepseek-chat                  0         0            0
 """
-    console.print(Panel(Text(summary_text.strip(), style="white")))
+    console.print(Panel(Text(summary_text.strip(), style="white"), title="Session Summary", border_style="blue"))
