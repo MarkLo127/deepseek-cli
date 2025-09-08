@@ -13,13 +13,10 @@ DeepSeek CLI 是一個命令列工具，提供 **與 DeepSeek 模型對話** 的
 
 ```bash
 # 下載專案
-git clone https://github.com/yourname/deepseek-cli.git
+git clone https://github.com/MarkLo127/deepseek-cli.git
 cd deepseek-cli
 
-# 安裝依賴
-pip install -r requirements.txt
-
-# 開發模式安裝 CLI
+# 安裝
 pip install -e .
 ```
 
