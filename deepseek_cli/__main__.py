@@ -23,10 +23,9 @@ from .features.chat.chat import chat_loop, model_say
 from .features.io.shell import ShellRunner
 from .features.io.fs import FileManager
 
-try:
-    from openai import OpenAI
-except Exception:
-    OpenAI = None  # type: ignore
+
+from openai import OpenAI
+OpenAI = None  # type: ignore
 
 
 # ──────────── 讓所有 --help 都顯示 DEEPSEEK 圖案（使用 Typer 的類別，避免斷言錯誤） ────────────
