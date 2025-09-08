@@ -1,3 +1,4 @@
+# deepseek_cli/__main__.py
 from __future__ import annotations
 
 import os
@@ -5,12 +6,13 @@ from pathlib import Path
 from typing import Optional
 
 import typer
+import click  # ← 改用 click 的 Group/Command 來覆寫 get_help
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.text import Text
 
-from .core.banner import render_banner
+from .core.banner import render_banner, ASCII_DEEPSEEK
 from .core.config import (
     load_config, save_config, normalize_with_defaults,
     DEFAULT_BASEURL, DEFAULT_MODEL, SUPPORTED_MODELS
@@ -26,7 +28,20 @@ try:
 except Exception:
     OpenAI = None  # type: ignore
 
-app = typer.Typer(add_completion=False)
+# ───────── make `--help` show the DEEPSEEK banner (using click) ─────────
+class BannerGroup(click.Group):
+    def get_help(self, ctx: click.Context) -> str:  # type: ignore[override]
+        base = super().get_help(ctx)
+        return f"{ASCII_DEEPSEEK}\n\n{base}"
+
+class BannerCommand(click.Command):
+    def get_help(self, ctx: click.Context) -> str:  # type: ignore[override]
+        base = super().get_help(ctx)
+        return f"{ASCII_DEEPSEEK}\n\n{base}"
+# ────────────────────────────────────────────────────────────────────────
+
+# Typer app (with banner-aware help)
+app = typer.Typer(cls=BannerGroup, add_completion=False) # type: ignore
 console = Console()
 
 def get_client(cfg: dict):
@@ -38,25 +53,33 @@ def get_client(cfg: dict):
 def ensure_config(force: bool = False) -> dict:
     cfg = normalize_with_defaults(load_config())
     if cfg.get("model") and not force:
-        save_config(cfg); return cfg
+        save_config(cfg)
+        return cfg
 
     console.print(Panel.fit("歡迎使用 [bold blue]DeepSeek CLI[/]！請完成設定。", border_style="blue"))
     console.print("選擇模型（按 Enter 預設 [cyan]deepseek-chat[/]）:")
     console.print("  [bold cyan]1[/]. deepseek-chat")
     console.print("  [bold cyan]2[/]. deepseek-reasoner")
     choice = Prompt.ask("模型編號", default="1").strip()
-    if choice not in {"1","2"}: choice="1"
-    cfg["model"] = SUPPORTED_MODELS[int(choice)-1]
+    if choice not in {"1", "2"}:
+        choice = "1"
+    cfg["model"] = SUPPORTED_MODELS[int(choice) - 1]
 
     api_key = Prompt.ask("請輸入 API Key（可留空）", default="", password=True).strip()
-    if api_key: cfg["api_key"] = api_key
+    if api_key:
+        cfg["api_key"] = api_key
 
-    base_url = Prompt.ask(f"請輸入 Base URL（可留空，預設 {DEFAULT_BASEURL}）", default="").strip()
+    base_url = Prompt.ask(
+        f"請輸入 Base URL（可留空，預設 {DEFAULT_BASEURL}）", default=""
+    ).strip()
     cfg["base_url"] = base_url if base_url else DEFAULT_BASEURL
 
     save_config(cfg)
     console.print("[green]✓ 設定已儲存[/]")
     return cfg
+
+def print_banner() -> None:
+    console.print(render_banner())
 
 def show_hints(model: str, base_url: str):
     console.print(
@@ -90,104 +113,138 @@ def repl_with_tools(cfg: dict):
         try:
             s = Prompt.ask("[bold blue]›[/]").strip()
         except (EOFError, KeyboardInterrupt):
-            console.print(); break
-        if not s: continue
-        if s.lower() in {"exit","quit",":q"}: break
+            console.print()
+            break
+        if not s:
+            continue
+        if s.lower() in {"exit", "quit", ":q"}:
+            break
 
+        # @path
         if s.startswith("@"):
             if not consent.ensure("fs_read"):
-                console.print("[yellow]已取消：需要讀取權限[/]"); continue
+                console.print("[yellow]已取消：需要讀取權限[/]")
+                continue
             p = Path(os.path.expanduser(s[1:]))
-            if p.is_file(): fs.read_file(p)
-            elif p.is_dir(): fs.list_dir(p)
-            else: console.print("[red]找不到檔案或資料夾[/]")
+            if p.is_file():
+                fs.read_file(p)
+            elif p.is_dir():
+                fs.list_dir(p)
+            else:
+                console.print("[red]找不到檔案或資料夾[/]")
             continue
 
+        # :edit / :open / :ls / :rm
         if s.startswith(":edit "):
             if not consent.ensure("fs_write"):
-                console.print("[yellow]已取消：需要寫入權限[/]"); continue
-            fs.edit_file(Path(os.path.expanduser(s.split(" ",1)[1]))); continue
+                console.print("[yellow]已取消：需要寫入權限[/]")
+                continue
+            fs.edit_file(Path(os.path.expanduser(s.split(" ", 1)[1])))
+            continue
 
         if s.startswith(":open "):
             if not consent.ensure("fs_read"):
-                console.print("[yellow]已取消：需要讀取權限[/]"); continue
-            fs.read_file(Path(os.path.expanduser(s.split(" ",1)[1]))); continue
+                console.print("[yellow]已取消：需要讀取權限[/]")
+                continue
+            fs.read_file(Path(os.path.expanduser(s.split(" ", 1)[1])))
+            continue
 
         if s.startswith(":ls "):
             if not consent.ensure("fs_read"):
-                console.print("[yellow]已取消：需要讀取權限[/]"); continue
-            fs.list_dir(Path(os.path.expanduser(s.split(" ",1)[1]))); continue
+                console.print("[yellow]已取消：需要讀取權限[/]")
+                continue
+            fs.list_dir(Path(os.path.expanduser(s.split(" ", 1)[1])))
+            continue
 
         if s.startswith(":rm "):
             if not consent.ensure("fs_write"):
-                console.print("[yellow]已取消：需要寫入權限[/]"); continue
-            fs.remove_file(Path(os.path.expanduser(s.split(" ",1)[1]))); continue
+                console.print("[yellow]已取消：需要寫入權限，且此動作具破壞性[/]")
+                continue
+            fs.remove_file(Path(os.path.expanduser(s.split(" ", 1)[1])))
+            continue
 
+        # !shell
         if s.startswith("!"):
             if not consent.ensure("shell"):
-                console.print("[yellow]已取消：需要系統指令權限[/]"); continue
-            shell.run(s[1:]); continue
+                console.print("[yellow]已取消：需要系統指令權限[/]")
+                continue
+            shell.run(s[1:])
+            continue
 
+        # 其他 → chat
         reply = model_say(get_client(cfg), model, s)
         console.print(Text(reply, style="bold cyan"))
 
     save_config(consent.cfg)
 
+# ─────────────────────────────────────────── Typer Commands ───────────────────────────────────────────
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context):
-    from .core.banner import render_banner
-    console.print(render_banner())
+    print_banner()
     cfg = ensure_config()
     if ctx.invoked_subcommand is None:
         repl_with_tools(cfg)
 
-@app.command()
+@app.command(cls=BannerCommand) # type: ignore
 def chat():
     """單純聊天模式。"""
-    from .core.banner import render_banner
-    console.print(render_banner())
+    print_banner()
     cfg = ensure_config()
     cfg = normalize_with_defaults(cfg)
     client = get_client(cfg)
     chat_loop(console, cfg["model"], client, cfg["base_url"])
 
-@app.command()
+@app.command(cls=BannerCommand) # type: ignore
 def setup():
     """重新執行設定精靈。"""
-    from .core.banner import render_banner
-    console.print(render_banner())
+    print_banner()
     _ = ensure_config(force=True)
     console.print("[green]已更新設定[/]")
 
-@app.command()
-def config(action: str = typer.Argument(..., help="show / set"),
-           key: Optional[str] = typer.Option(None),
-           value: Optional[str] = typer.Option(None)):
+@app.command(cls=BannerCommand) # type: ignore
+def config(
+    action: str = typer.Argument(..., help="show / set"),
+    key: Optional[str] = typer.Option(None),
+    value: Optional[str] = typer.Option(None),
+):
     """deepseek config show / deepseek config set --key ... --value ..."""
-    from .core.banner import render_banner
-    from .core.config import load_config
-    console.print(render_banner())
+    print_banner()
     cfg = normalize_with_defaults(load_config() or {})
     if action == "show":
         safe = dict(cfg)
-        if "api_key" in safe: safe["api_key"] = "***"
-        console.print(Panel.fit(
-            Text.from_markup(
-                f"[bold]model:[/]\t{safe.get('model')}\n"
-                f"[bold]base_url:[/]\t{safe.get('base_url')}\n"
-                f"[bold]api_key:[/]\t{safe.get('api_key','')}\n"
-                f"[bold]allow_shell:[/]\t{safe.get('allow_shell', False)}\n"
-                f"[bold]allow_fs_read:[/]\t{safe.get('allow_fs_read', False)}\n"
-                f"[bold]allow_fs_write:[/]\t{safe.get('allow_fs_write', False)}"
-            ),
-            title="config",
-            border_style="blue",
-        ))
+        if "api_key" in safe:
+            safe["api_key"] = "***"
+        console.print(
+            Panel.fit(
+                Text.from_markup(
+                    f"[bold]model:[/]\t{safe.get('model')}\n"
+                    f"[bold]base_url:[/]\t{safe.get('base_url')}\n"
+                    f"[bold]api_key:[/]\t{safe.get('api_key','')}\n"
+                    f"[bold]allow_shell:[/]\t{safe.get('allow_shell', False)}\n"
+                    f"[bold]allow_fs_read:[/]\t{safe.get('allow_fs_read', False)}\n"
+                    f"[bold]allow_fs_write:[/]\t{safe.get('allow_fs_write', False)}"
+                ),
+                title="config",
+                border_style="blue",
+            )
+        )
         return
+
     if action == "set":
-        if not key: console.print("[red]請提供 --key[/]"); raise typer.Exit(1)
+        if not key:
+            console.print("[red]請提供 --key[/]")
+            raise typer.Exit(1)
         if key == "api_key" and value is None:
             value = Prompt.ask("輸入新的 API Key", password=True)
-        if value is None: console.print("[red]請提供 --value[/]"); raise typer.Exit(1)
-        cfg[key] = value; save_config(cfg); console.print("[green]✓ 已更新[/]"); return
+        if value is None:
+            console.print("[red]請提供 --value[/]")
+            raise typer.Exit(1)
+        cfg[key] = value
+        save_config(cfg)
+        console.print("[green]✓ 已更新[/]")
+        return
+
     console.print("[red]未知動作，僅支援 show / set[/]")
+
+if __name__ == "__main__":
+    app()
