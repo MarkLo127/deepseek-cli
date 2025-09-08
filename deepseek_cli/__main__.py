@@ -13,13 +13,13 @@ from rich.prompt import Prompt
 from rich.text import Text
 
 # 專案內模組（你目前的專案是扁平結構：banner.py、config.py... 與本檔同層）
-from core.banner import render_banner, ASCII_DEEPSEEK
-from core.config import load_config, save_config, normalize_with_defaults,DEFAULT_BASEURL, DEFAULT_MODEL, SUPPORTED_MODELS
-from core.consent import ConsentManager
-from core.completer import enable_tab_completion
-from features.chat.chat import chat_loop, model_say
-from features.io.shell import ShellRunner
-from features.io.fs import FileManager
+from .core.banner import render_banner, ASCII_DEEPSEEK
+from .core.config import load_config, save_config, normalize_with_defaults,DEFAULT_BASEURL, DEFAULT_MODEL, SUPPORTED_MODELS
+from .core.consent import ConsentManager
+from .core.completer import enable_tab_completion
+from .features.chat.chat import chat_loop, model_say
+from .features.io.shell import ShellRunner
+from .features.io.fs import FileManager
 
 
 from openai import OpenAI
