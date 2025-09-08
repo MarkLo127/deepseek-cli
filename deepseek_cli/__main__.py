@@ -26,23 +26,23 @@ from .features.io.fs import FileManager
 from openai import OpenAI
 OpenAI = None  # type: ignore
 
-# ──────────── 讓所有 --help 的圖示固定在「最上方」且只有一次 ────────────
+
+
+# ──────────── 讓所有 --help 的圖示置頂 & 保持藍色（用 ANSI），且只顯示一次 ────────────
 ANSI_BLUE_BOLD = "\033[1;34m"
 ANSI_RESET = "\033[0m"
 
 class BannerGroup(TyperGroup):
-    def format_help(self, ctx, formatter):  # type: ignore[override]
-        # 先寫入藍色 ASCII，再交給父類排版，確保顯示在 help 最上面
-        formatter.write_text(f"{ANSI_BLUE_BOLD}{ASCII_DEEPSEEK}{ANSI_RESET}")
-        formatter.write_text("")  # 空行
-        super().format_help(ctx, formatter)
+    def get_help(self, ctx):  # type: ignore[override]
+        base = super().get_help(ctx)
+        # 直接把圖示前置，避免 RichHelpFormatter 把文字搬到最底
+        return f"{ANSI_BLUE_BOLD}{ASCII_DEEPSEEK}{ANSI_RESET}\n\n{base}"
 
 class BannerCommand(TyperCommand):
-    def format_help(self, ctx, formatter):  # type: ignore[override]
-        formatter.write_text(f"{ANSI_BLUE_BOLD}{ASCII_DEEPSEEK}{ANSI_RESET}")
-        formatter.write_text("")
-        super().format_help(ctx, formatter)
-# ───────────────────────────────────────────────────────────────
+    def get_help(self, ctx):  # type: ignore[override]
+        base = super().get_help(ctx)
+        return f"{ANSI_BLUE_BOLD}{ASCII_DEEPSEEK}{ANSI_RESET}\n\n{base}"
+# ───────────────────────────────────────────────────────────────────────────────
 
 
 app = typer.Typer(cls=BannerGroup, add_completion=False)
@@ -86,7 +86,7 @@ def ensure_config(force: bool = False) -> dict:
 
 
 def print_banner() -> None:
-    # 一般執行（非 --help）時用 Rich 渲染藍色 ASCII
+    # 一般執行（非 --help）時用 Rich 藍色
     console.print(render_banner())
 
 
@@ -100,7 +100,7 @@ def show_hints(model: str, base_url: str) -> None:
             "  • [bold]:open <path>[/] 只讀開啟（需同意：讀取）\n"
             "  • [bold]:ls <path>[/]   列目錄（需同意：讀取）\n"
             "  • [bold]:rm <path>[/]   刪檔案（需同意：寫入）\n"
-            "離開：exit / quit / q",
+            "離開：exit / quit / :q",
             title=f"Model • {model}   Base • {base_url}",
             border_style="blue",
         )
@@ -128,7 +128,7 @@ def repl_with_tools(cfg: dict) -> None:
             break
         if not s:
             continue
-        if s.lower() in {"exit", "quit", "q"}:
+        if s.lower() in {"exit", "quit", ":q"}:
             break
 
         # @path
@@ -193,10 +193,9 @@ def repl_with_tools(cfg: dict) -> None:
 # ─────────────────────────────────────────── Typer Commands ───────────────────────────────────────────
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context):
-    # ⚠️ 若有子指令，不做任何事（避免重複印圖示）
+    # 若有子指令，不印圖示（避免重複）
     if ctx.invoked_subcommand is not None:
         return
-    # 只有進入 REPL 才印一次圖示
     print_banner()
     cfg = ensure_config()
     repl_with_tools(cfg)
@@ -205,7 +204,6 @@ def main(ctx: typer.Context):
 @app.command(cls=BannerCommand)
 def chat():
     """單純聊天模式。"""
-    # 正常執行子指令時，印一次圖示（help 由 format_help 處理）
     print_banner()
     cfg = ensure_config()
     cfg = normalize_with_defaults(cfg)
