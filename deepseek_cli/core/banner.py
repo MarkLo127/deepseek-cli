@@ -9,7 +9,10 @@ ASCII_DEEPSEEK = r"""
 ╚═════╝ ╚══════╝╚══════╝╚═╝     ╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝
 """.rstrip("\n")
 
+
 def render_banner() -> Text:
-    t = Text(ASCII_DEEPSEEK, justify="left")
-    t.stylize("bold blue")
+    # 這裡直接在 append 時就帶 style，避免顯示成白色
+    t = Text(justify="left")
+    for line in ASCII_DEEPSEEK.splitlines():
+        t.append(line + "\n", style="bold blue")
     return t

@@ -6,55 +6,44 @@ from pathlib import Path
 from typing import Optional
 
 import typer
-import click  # 使用 click 來客製 --help（與 Typer 0.12+ 相容）
+from typer.core import TyperGroup, TyperCommand  # 必須使用 Typer 自己的類別，否則會觸發斷言
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.text import Text
 
-# 專案內模組（你目前的專案是扁平結構：banner.py、config.py... 與本檔同層）
 from .core.banner import render_banner, ASCII_DEEPSEEK
-from .core.config import load_config, save_config, normalize_with_defaults,DEFAULT_BASEURL, DEFAULT_MODEL, SUPPORTED_MODELS
+from .core.config import (
+    load_config, save_config, normalize_with_defaults,
+    DEFAULT_BASEURL, DEFAULT_MODEL, SUPPORTED_MODELS,
+)
 from .core.consent import ConsentManager
 from .core.completer import enable_tab_completion
 from .features.chat.chat import chat_loop, model_say
 from .features.io.shell import ShellRunner
 from .features.io.fs import FileManager
 
+try:
+    from openai import OpenAI
+except Exception:
+    OpenAI = None  # type: ignore
 
-from openai import OpenAI
-OpenAI = None  # type: ignore
 
-
-# ───────────────── make `--help` 顯示 DEEPSEEK Banner（Typer 0.12+ 相容） ─────────────────
-def _strip_typer_rich_kwargs(kwargs: dict) -> None:
-    """Typer 0.12+ 會傳遞多個 rich_* 參數到 click，這裡先移除避免 TypeError。"""
-    for k in list(kwargs.keys()):
-        if k.startswith("rich_"):
-            kwargs.pop(k, None)
-
-class BannerGroup(click.Group):
-    def __init__(self, *args, **kwargs):
-        _strip_typer_rich_kwargs(kwargs)
-        super().__init__(*args, **kwargs)
-
-    def get_help(self, ctx: click.Context) -> str:  # type: ignore[override]
+# ──────────── 讓所有 --help 都顯示 DEEPSEEK 圖案（使用 Typer 的類別，避免斷言錯誤） ────────────
+class BannerGroup(TyperGroup):
+    def get_help(self, ctx):  # type: ignore[override]
         base = super().get_help(ctx)
         return f"{ASCII_DEEPSEEK}\n\n{base}"
 
-class BannerCommand(click.Command):
-    def __init__(self, *args, **kwargs):
-        _strip_typer_rich_kwargs(kwargs)
-        super().__init__(*args, **kwargs)
-
-    def get_help(self, ctx: click.Context) -> str:  # type: ignore[override]
+class BannerCommand(TyperCommand):
+    def get_help(self, ctx):  # type: ignore[override]
         base = super().get_help(ctx)
         return f"{ASCII_DEEPSEEK}\n\n{base}"
-# ────────────────────────────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────────
 
 
-# Typer 應用（型別檢查器會對 cls 提示不符；這裡是刻意傳遞 click 的類別給 Typer）
-app = typer.Typer(cls=BannerGroup, add_completion=False)  # type: ignore[arg-type]
+# 使用自訂的 Group 類別；必須是 TyperGroup 的子類才能通過 Typer 的 runtime 斷言
+app = typer.Typer(cls=BannerGroup, add_completion=False)
 console = Console()
 
 
@@ -62,7 +51,6 @@ def get_client(cfg: dict):
     if OpenAI is None or not cfg.get("api_key"):
         return None
     base_url = (cfg.get("base_url") or DEFAULT_BASEURL).rstrip("/")
-    # OpenAI SDK 需要 /v1
     return OpenAI(api_key=cfg["api_key"], base_url=base_url + "/v1")
 
 
@@ -109,7 +97,7 @@ def show_hints(model: str, base_url: str) -> None:
             "  • [bold]:open <path>[/] 只讀開啟（需同意：讀取）\n"
             "  • [bold]:ls <path>[/]   列目錄（需同意：讀取）\n"
             "  • [bold]:rm <path>[/]   刪檔案（需同意：寫入）\n"
-            "離開：exit / quit / q",
+            "離開：exit / quit / :q",
             title=f"Model • {model}   Base • {base_url}",
             border_style="blue",
         )
@@ -117,7 +105,6 @@ def show_hints(model: str, base_url: str) -> None:
 
 
 def repl_with_tools(cfg: dict) -> None:
-    """主 REPL：聊天 + shell + 檔案操作（皆需使用者授權）。"""
     model = cfg.get("model", DEFAULT_MODEL)
     base_url = cfg.get("base_url") or DEFAULT_BASEURL
     client = get_client(cfg)
@@ -137,7 +124,7 @@ def repl_with_tools(cfg: dict) -> None:
             break
         if not s:
             continue
-        if s.lower() in {"exit", "quit", "q"}:
+        if s.lower() in {"exit", "quit", ":q"}:
             break
 
         # @path
@@ -195,7 +182,6 @@ def repl_with_tools(cfg: dict) -> None:
         reply = model_say(get_client(cfg), model, s)
         console.print(Text(reply, style="bold cyan"))
 
-    # 可能新增了 allow_* 永久授權，落盤
     save_config(consent.cfg)
 
 
@@ -208,7 +194,7 @@ def main(ctx: typer.Context):
         repl_with_tools(cfg)
 
 
-@app.command(cls=BannerCommand)  # type: ignore[arg-type]
+@app.command(cls=BannerCommand)
 def chat():
     """單純聊天模式。"""
     print_banner()
@@ -218,7 +204,7 @@ def chat():
     chat_loop(console, cfg["model"], client, cfg["base_url"])
 
 
-@app.command(cls=BannerCommand)  # type: ignore[arg-type]
+@app.command(cls=BannerCommand)
 def setup():
     """重新執行設定精靈。"""
     print_banner()
@@ -226,7 +212,7 @@ def setup():
     console.print("[green]已更新設定[/]")
 
 
-@app.command(cls=BannerCommand)  # type: ignore[arg-type]
+@app.command(cls=BannerCommand)
 def config(
     action: str = typer.Argument(..., help="show / set"),
     key: Optional[str] = typer.Option(None),
