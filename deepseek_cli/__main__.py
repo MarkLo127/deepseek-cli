@@ -6,32 +6,36 @@ from pathlib import Path
 from typing import Optional
 
 import typer
-import click  # ← 改用 click 的 Group/Command 來覆寫 get_help
+import click  # 使用 click 來客製 --help（與 Typer 0.12+ 相容）
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.text import Text
 
-import click
-from .core.banner import render_banner, ASCII_DEEPSEEK
-from .core.config import (
-    load_config, save_config, normalize_with_defaults,
-    DEFAULT_BASEURL, DEFAULT_MODEL, SUPPORTED_MODELS
-)
-from .core.consent import ConsentManager
-from .core.completer import enable_tab_completion
-from .features.chat.chat import chat_loop, model_say
-from .features.io.shell import ShellRunner
-from .features.io.fs import FileManager
+# 專案內模組（你目前的專案是扁平結構：banner.py、config.py... 與本檔同層）
+from core.banner import render_banner, ASCII_DEEPSEEK
+from core.config import load_config, save_config, normalize_with_defaults,DEFAULT_BASEURL, DEFAULT_MODEL, SUPPORTED_MODELS
+from core.consent import ConsentManager
+from core.completer import enable_tab_completion
+from features.chat.chat import chat_loop, model_say
+from features.io.shell import ShellRunner
+from features.io.fs import FileManager
+
 
 from openai import OpenAI
+OpenAI = None  # type: ignore
 
 
-# ───────── make `--help` show the DEEPSEEK banner (using click) ─────────
+# ───────────────── make `--help` 顯示 DEEPSEEK Banner（Typer 0.12+ 相容） ─────────────────
+def _strip_typer_rich_kwargs(kwargs: dict) -> None:
+    """Typer 0.12+ 會傳遞多個 rich_* 參數到 click，這裡先移除避免 TypeError。"""
+    for k in list(kwargs.keys()):
+        if k.startswith("rich_"):
+            kwargs.pop(k, None)
+
 class BannerGroup(click.Group):
     def __init__(self, *args, **kwargs):
-        # Typer 0.12 passes this extra kw; Click doesn't accept it.
-        kwargs.pop("rich_markup_mode", None)
+        _strip_typer_rich_kwargs(kwargs)
         super().__init__(*args, **kwargs)
 
     def get_help(self, ctx: click.Context) -> str:  # type: ignore[override]
@@ -40,24 +44,27 @@ class BannerGroup(click.Group):
 
 class BannerCommand(click.Command):
     def __init__(self, *args, **kwargs):
-        # Same issue for commands
-        kwargs.pop("rich_markup_mode", None)
+        _strip_typer_rich_kwargs(kwargs)
         super().__init__(*args, **kwargs)
 
     def get_help(self, ctx: click.Context) -> str:  # type: ignore[override]
         base = super().get_help(ctx)
         return f"{ASCII_DEEPSEEK}\n\n{base}"
-# ────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────────────────────
 
-# Typer app (with banner-aware help)
-app = typer.Typer(cls=BannerGroup, add_completion=False) # type: ignore
+
+# Typer 應用（型別檢查器會對 cls 提示不符；這裡是刻意傳遞 click 的類別給 Typer）
+app = typer.Typer(cls=BannerGroup, add_completion=False)  # type: ignore[arg-type]
 console = Console()
+
 
 def get_client(cfg: dict):
     if OpenAI is None or not cfg.get("api_key"):
         return None
     base_url = (cfg.get("base_url") or DEFAULT_BASEURL).rstrip("/")
+    # OpenAI SDK 需要 /v1
     return OpenAI(api_key=cfg["api_key"], base_url=base_url + "/v1")
+
 
 def ensure_config(force: bool = False) -> dict:
     cfg = normalize_with_defaults(load_config())
@@ -87,10 +94,12 @@ def ensure_config(force: bool = False) -> dict:
     console.print("[green]✓ 設定已儲存[/]")
     return cfg
 
+
 def print_banner() -> None:
     console.print(render_banner())
 
-def show_hints(model: str, base_url: str):
+
+def show_hints(model: str, base_url: str) -> None:
     console.print(
         Panel.fit(
             "輸入訊息或指令；支援：\n"
@@ -106,7 +115,9 @@ def show_hints(model: str, base_url: str):
         )
     )
 
-def repl_with_tools(cfg: dict):
+
+def repl_with_tools(cfg: dict) -> None:
+    """主 REPL：聊天 + shell + 檔案操作（皆需使用者授權）。"""
     model = cfg.get("model", DEFAULT_MODEL)
     base_url = cfg.get("base_url") or DEFAULT_BASEURL
     client = get_client(cfg)
@@ -180,11 +191,13 @@ def repl_with_tools(cfg: dict):
             shell.run(s[1:])
             continue
 
-        # 其他 → chat
+        # 其他 → 當作聊天
         reply = model_say(get_client(cfg), model, s)
         console.print(Text(reply, style="bold cyan"))
 
+    # 可能新增了 allow_* 永久授權，落盤
     save_config(consent.cfg)
+
 
 # ─────────────────────────────────────────── Typer Commands ───────────────────────────────────────────
 @app.callback(invoke_without_command=True)
@@ -194,7 +207,8 @@ def main(ctx: typer.Context):
     if ctx.invoked_subcommand is None:
         repl_with_tools(cfg)
 
-@app.command(cls=BannerCommand) # type: ignore
+
+@app.command(cls=BannerCommand)  # type: ignore[arg-type]
 def chat():
     """單純聊天模式。"""
     print_banner()
@@ -203,14 +217,16 @@ def chat():
     client = get_client(cfg)
     chat_loop(console, cfg["model"], client, cfg["base_url"])
 
-@app.command(cls=BannerCommand) # type: ignore
+
+@app.command(cls=BannerCommand)  # type: ignore[arg-type]
 def setup():
     """重新執行設定精靈。"""
     print_banner()
     _ = ensure_config(force=True)
     console.print("[green]已更新設定[/]")
 
-@app.command(cls=BannerCommand) # type: ignore
+
+@app.command(cls=BannerCommand)  # type: ignore[arg-type]
 def config(
     action: str = typer.Argument(..., help="show / set"),
     key: Optional[str] = typer.Option(None),
@@ -254,6 +270,7 @@ def config(
         return
 
     console.print("[red]未知動作，僅支援 show / set[/]")
+
 
 if __name__ == "__main__":
     app()
