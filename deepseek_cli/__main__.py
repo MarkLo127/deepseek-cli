@@ -26,25 +26,25 @@ from .features.io.fs import FileManager
 from openai import OpenAI
 OpenAI = None  # type: ignore
 
-
-# ──────────── 讓所有 --help 都顯示藍色 DEEPSEEK 圖案（用 ANSI，Typer 幫忙原樣輸出） ────────────
+# ──────────── 讓所有 --help 的圖示固定在「最上方」且只有一次 ────────────
 ANSI_BLUE_BOLD = "\033[1;34m"
 ANSI_RESET = "\033[0m"
 
 class BannerGroup(TyperGroup):
-    def get_help(self, ctx):  # type: ignore[override]
-        base = super().get_help(ctx)
-        # 在 help 前面插入藍色 ASCII，並且重置，避免污染後續內容
-        return f"{ANSI_BLUE_BOLD}{ASCII_DEEPSEEK}{ANSI_RESET}\n\n{base}"
+    def format_help(self, ctx, formatter):  # type: ignore[override]
+        # 先寫入藍色 ASCII，再交給父類排版，確保顯示在 help 最上面
+        formatter.write_text(f"{ANSI_BLUE_BOLD}{ASCII_DEEPSEEK}{ANSI_RESET}")
+        formatter.write_text("")  # 空行
+        super().format_help(ctx, formatter)
 
 class BannerCommand(TyperCommand):
-    def get_help(self, ctx):  # type: ignore[override]
-        base = super().get_help(ctx)
-        return f"{ANSI_BLUE_BOLD}{ASCII_DEEPSEEK}{ANSI_RESET}\n\n{base}"
-# ───────────────────────────────────────────────────────────────────────────────
+    def format_help(self, ctx, formatter):  # type: ignore[override]
+        formatter.write_text(f"{ANSI_BLUE_BOLD}{ASCII_DEEPSEEK}{ANSI_RESET}")
+        formatter.write_text("")
+        super().format_help(ctx, formatter)
+# ───────────────────────────────────────────────────────────────
 
 
-# 必須用 Typer 自己的 Group 類別；否則 Typer 在 runtime 會 assert 失敗
 app = typer.Typer(cls=BannerGroup, add_completion=False)
 console = Console()
 
@@ -86,7 +86,7 @@ def ensure_config(force: bool = False) -> dict:
 
 
 def print_banner() -> None:
-    # 一般執行（非 --help）時用 Rich 藍色渲染
+    # 一般執行（非 --help）時用 Rich 渲染藍色 ASCII
     console.print(render_banner())
 
 
@@ -100,7 +100,7 @@ def show_hints(model: str, base_url: str) -> None:
             "  • [bold]:open <path>[/] 只讀開啟（需同意：讀取）\n"
             "  • [bold]:ls <path>[/]   列目錄（需同意：讀取）\n"
             "  • [bold]:rm <path>[/]   刪檔案（需同意：寫入）\n"
-            "離開：exit / quit / q",
+            "離開：exit / quit / :q",
             title=f"Model • {model}   Base • {base_url}",
             border_style="blue",
         )
@@ -108,6 +108,7 @@ def show_hints(model: str, base_url: str) -> None:
 
 
 def repl_with_tools(cfg: dict) -> None:
+    """主 REPL：聊天 + shell + 檔案操作（皆需使用者授權）。"""
     model = cfg.get("model", DEFAULT_MODEL)
     base_url = cfg.get("base_url") or DEFAULT_BASEURL
     client = get_client(cfg)
@@ -127,7 +128,7 @@ def repl_with_tools(cfg: dict) -> None:
             break
         if not s:
             continue
-        if s.lower() in {"exit", "quit", "q"}:
+        if s.lower() in {"exit", "quit", ":q"}:
             break
 
         # @path
@@ -185,26 +186,27 @@ def repl_with_tools(cfg: dict) -> None:
         reply = model_say(get_client(cfg), model, s)
         console.print(Text(reply, style="bold cyan"))
 
+    # 落盤記錄可能更新的永久授權
     save_config(consent.cfg)
 
 
 # ─────────────────────────────────────────── Typer Commands ───────────────────────────────────────────
-# ... 省略上方程式碼 ...
-
-# ─────────────────────────────────────────── Typer Commands ───────────────────────────────────────────
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context):
-    # 只在 REPL 啟動時印 banner
-    if ctx.invoked_subcommand is None:
-        print_banner()
-        cfg = ensure_config()
-        repl_with_tools(cfg)
+    # ⚠️ 若有子指令，不做任何事（避免重複印圖示）
+    if ctx.invoked_subcommand is not None:
+        return
+    # 只有進入 REPL 才印一次圖示
+    print_banner()
+    cfg = ensure_config()
+    repl_with_tools(cfg)
 
 
 @app.command(cls=BannerCommand)
 def chat():
     """單純聊天模式。"""
-    # ⚠️ 移除 print_banner()，避免重複
+    # 正常執行子指令時，印一次圖示（help 由 format_help 處理）
+    print_banner()
     cfg = ensure_config()
     cfg = normalize_with_defaults(cfg)
     client = get_client(cfg)
@@ -214,7 +216,7 @@ def chat():
 @app.command(cls=BannerCommand)
 def setup():
     """重新執行設定精靈。"""
-    # ⚠️ 移除 print_banner()
+    print_banner()
     _ = ensure_config(force=True)
     console.print("[green]已更新設定[/]")
 
@@ -226,7 +228,7 @@ def config(
     value: Optional[str] = typer.Option(None),
 ):
     """deepseek config show / deepseek config set --key ... --value ..."""
-    # ⚠️ 移除 print_banner()
+    print_banner()
     cfg = normalize_with_defaults(load_config() or {})
     if action == "show":
         safe = dict(cfg)
@@ -263,6 +265,7 @@ def config(
         return
 
     console.print("[red]未知動作，僅支援 show / set[/]")
+
 
 if __name__ == "__main__":
     app()

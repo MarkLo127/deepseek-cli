@@ -10,7 +10,7 @@ ASCII_DEEPSEEK = r"""
 """.rstrip("\n")
 
 def render_banner() -> Text:
-    # 非 --help 場景，用 Rich 渲染成藍色
+    # REPL / 子指令正常執行時的顏色由 Rich 負責
     t = Text(justify="left")
     for line in ASCII_DEEPSEEK.splitlines():
         t.append(line + "\n", style="bold blue")
