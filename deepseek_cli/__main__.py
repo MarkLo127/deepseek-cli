@@ -12,6 +12,7 @@ from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.text import Text
 
+import click
 from .core.banner import render_banner, ASCII_DEEPSEEK
 from .core.config import (
     load_config, save_config, normalize_with_defaults,
@@ -23,18 +24,26 @@ from .features.chat.chat import chat_loop, model_say
 from .features.io.shell import ShellRunner
 from .features.io.fs import FileManager
 
-try:
-    from openai import OpenAI
-except Exception:
-    OpenAI = None  # type: ignore
+from openai import OpenAI
+
 
 # ───────── make `--help` show the DEEPSEEK banner (using click) ─────────
 class BannerGroup(click.Group):
+    def __init__(self, *args, **kwargs):
+        # Typer 0.12 passes this extra kw; Click doesn't accept it.
+        kwargs.pop("rich_markup_mode", None)
+        super().__init__(*args, **kwargs)
+
     def get_help(self, ctx: click.Context) -> str:  # type: ignore[override]
         base = super().get_help(ctx)
         return f"{ASCII_DEEPSEEK}\n\n{base}"
 
 class BannerCommand(click.Command):
+    def __init__(self, *args, **kwargs):
+        # Same issue for commands
+        kwargs.pop("rich_markup_mode", None)
+        super().__init__(*args, **kwargs)
+
     def get_help(self, ctx: click.Context) -> str:  # type: ignore[override]
         base = super().get_help(ctx)
         return f"{ASCII_DEEPSEEK}\n\n{base}"
@@ -91,7 +100,7 @@ def show_hints(model: str, base_url: str):
             "  • [bold]:open <path>[/] 只讀開啟（需同意：讀取）\n"
             "  • [bold]:ls <path>[/]   列目錄（需同意：讀取）\n"
             "  • [bold]:rm <path>[/]   刪檔案（需同意：寫入）\n"
-            "離開：exit / quit / :q",
+            "離開：exit / quit / q",
             title=f"Model • {model}   Base • {base_url}",
             border_style="blue",
         )
@@ -117,7 +126,7 @@ def repl_with_tools(cfg: dict):
             break
         if not s:
             continue
-        if s.lower() in {"exit", "quit", ":q"}:
+        if s.lower() in {"exit", "quit", "q"}:
             break
 
         # @path
