@@ -30,6 +30,6 @@ def print_about() -> None:
 
 def print_quit_summary() -> None:
     summary_text = """
- Agent powering down. Goodbye!
+ DeepSeek is powering down. Goodbye!
 """
     console.print(Panel(Text(summary_text.strip(), style="white"), title="Session Summary", border_style="blue"))
