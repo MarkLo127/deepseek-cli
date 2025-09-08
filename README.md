@@ -1,4 +1,4 @@
-# DeepSeek CLI(開發中請勿下載使用）
+# DeepSeek CLI (開發中請勿下載使用)
 
 
 ![DeepSeek CLI](assets/deepseek_cli.png)
