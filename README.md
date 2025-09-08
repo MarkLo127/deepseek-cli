@@ -1,5 +1,9 @@
 # DeepSeek CLI
 
+[中文](README.md) | [English](README.en.md)
+
+![DeepSeek CLI](assets/deepseek_cli.png)
+
 DeepSeek CLI 是一個命令列工具，提供 **與 DeepSeek 模型對話** 的能力，並且內建支援以下功能：
 - **安全授權機制**：執行任何系統指令或檔案讀寫前，都會詢問使用者同意。
 - **聊天模式**：與 DeepSeek 模型直接互動，支援 `deepseek-chat` 與 `deepseek-reasoner`。
