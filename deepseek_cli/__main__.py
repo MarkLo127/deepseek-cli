@@ -1,4 +1,3 @@
-# deepseek_cli/__main__.py
 from __future__ import annotations
 
 import os
@@ -6,13 +5,13 @@ from pathlib import Path
 from typing import Optional
 
 import typer
-from typer.core import TyperGroup, TyperCommand  # 必須使用 Typer 自己的類別，否則會觸發斷言
+from typer.core import TyperGroup, TyperCommand  # 必須繼承 Typer 的類，否則會觸發斷言
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.text import Text
 
-from .core.banner import render_banner, ASCII_DEEPSEEK
+from.core.banner import render_banner, ASCII_DEEPSEEK
 from .core.config import (
     load_config, save_config, normalize_with_defaults,
     DEFAULT_BASEURL, DEFAULT_MODEL, SUPPORTED_MODELS,
@@ -28,20 +27,24 @@ from openai import OpenAI
 OpenAI = None  # type: ignore
 
 
-# ──────────── 讓所有 --help 都顯示 DEEPSEEK 圖案（使用 Typer 的類別，避免斷言錯誤） ────────────
+# ──────────── 讓所有 --help 都顯示藍色 DEEPSEEK 圖案（用 ANSI，Typer 幫忙原樣輸出） ────────────
+ANSI_BLUE_BOLD = "\033[1;34m"
+ANSI_RESET = "\033[0m"
+
 class BannerGroup(TyperGroup):
     def get_help(self, ctx):  # type: ignore[override]
         base = super().get_help(ctx)
-        return f"{ASCII_DEEPSEEK}\n\n{base}"
+        # 在 help 前面插入藍色 ASCII，並且重置，避免污染後續內容
+        return f"{ANSI_BLUE_BOLD}{ASCII_DEEPSEEK}{ANSI_RESET}\n\n{base}"
 
 class BannerCommand(TyperCommand):
     def get_help(self, ctx):  # type: ignore[override]
         base = super().get_help(ctx)
-        return f"{ASCII_DEEPSEEK}\n\n{base}"
+        return f"{ANSI_BLUE_BOLD}{ASCII_DEEPSEEK}{ANSI_RESET}\n\n{base}"
 # ───────────────────────────────────────────────────────────────────────────────
 
 
-# 使用自訂的 Group 類別；必須是 TyperGroup 的子類才能通過 Typer 的 runtime 斷言
+# 必須用 Typer 自己的 Group 類別；否則 Typer 在 runtime 會 assert 失敗
 app = typer.Typer(cls=BannerGroup, add_completion=False)
 console = Console()
 
@@ -83,6 +86,7 @@ def ensure_config(force: bool = False) -> dict:
 
 
 def print_banner() -> None:
+    # 一般執行（非 --help）時用 Rich 藍色渲染
     console.print(render_banner())
 
 
@@ -96,7 +100,7 @@ def show_hints(model: str, base_url: str) -> None:
             "  • [bold]:open <path>[/] 只讀開啟（需同意：讀取）\n"
             "  • [bold]:ls <path>[/]   列目錄（需同意：讀取）\n"
             "  • [bold]:rm <path>[/]   刪檔案（需同意：寫入）\n"
-            "離開：exit / quit / :q",
+            "離開：exit / quit / q",
             title=f"Model • {model}   Base • {base_url}",
             border_style="blue",
         )
@@ -123,7 +127,7 @@ def repl_with_tools(cfg: dict) -> None:
             break
         if not s:
             continue
-        if s.lower() in {"exit", "quit", ":q"}:
+        if s.lower() in {"exit", "quit", "q"}:
             break
 
         # @path
