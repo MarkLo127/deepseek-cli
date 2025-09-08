@@ -1,4 +1,4 @@
-# DeepSeek CLI
+# DeepSeek CLI(Please do not download it while it is currently under development)
 
 [中文](README.md) | [English](README.en.md)
 
