@@ -1,0 +1,19 @@
+[project]
+name = "deepseek-cli"
+version = "0.3.0"
+description = "DeepSeek CLI with chat, consent-gated shell & file ops, and path autocompletion."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "typer>=0.12",
+  "rich>=13.7",
+  "platformdirs>=4.2",
+  "openai>=1.40"
+]
+
+[project.scripts]
+deepseek = "deepseek_cli.__main__:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
