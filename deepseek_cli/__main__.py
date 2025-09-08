@@ -189,18 +189,22 @@ def repl_with_tools(cfg: dict) -> None:
 
 
 # ─────────────────────────────────────────── Typer Commands ───────────────────────────────────────────
+# ... 省略上方程式碼 ...
+
+# ─────────────────────────────────────────── Typer Commands ───────────────────────────────────────────
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context):
-    print_banner()
-    cfg = ensure_config()
+    # 只在 REPL 啟動時印 banner
     if ctx.invoked_subcommand is None:
+        print_banner()
+        cfg = ensure_config()
         repl_with_tools(cfg)
 
 
 @app.command(cls=BannerCommand)
 def chat():
     """單純聊天模式。"""
-    print_banner()
+    # ⚠️ 移除 print_banner()，避免重複
     cfg = ensure_config()
     cfg = normalize_with_defaults(cfg)
     client = get_client(cfg)
@@ -210,7 +214,7 @@ def chat():
 @app.command(cls=BannerCommand)
 def setup():
     """重新執行設定精靈。"""
-    print_banner()
+    # ⚠️ 移除 print_banner()
     _ = ensure_config(force=True)
     console.print("[green]已更新設定[/]")
 
@@ -222,7 +226,7 @@ def config(
     value: Optional[str] = typer.Option(None),
 ):
     """deepseek config show / deepseek config set --key ... --value ..."""
-    print_banner()
+    # ⚠️ 移除 print_banner()
     cfg = normalize_with_defaults(load_config() or {})
     if action == "show":
         safe = dict(cfg)
@@ -259,7 +263,6 @@ def config(
         return
 
     console.print("[red]未知動作，僅支援 show / set[/]")
-
 
 if __name__ == "__main__":
     app()
