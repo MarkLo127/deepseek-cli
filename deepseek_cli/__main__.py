@@ -18,7 +18,7 @@ from .core.config import (
 )
 from .core.consent import ConsentManager
 from .core.completer import enable_tab_completion
-from .chat.chat import chat_loop, model_say
+from .core.chat import chat_loop, model_say
 from .tool.shell import ShellRunner
 from .tool.fs import FileManager
 
