@@ -30,8 +30,4 @@ class ConsentManager:
         allow_once = Confirm.ask("允許本次？", default=False)
         if not allow_once:
             return False
-        remember = Confirm.ask("是否記住同意（永久）？", default=False)
-        if remember:
-            self.cfg[cfg_key] = True
-        self.session_cache[kind] = True
         return True
