@@ -247,7 +247,7 @@ class ChatManager:
                 break
             if not s:
                 continue
-            if s.lower() in {"exit", "quit", ":q"}:
+            if s.lower() in {"exit", "quit", "q"}:
                 break
 
             # 1) Shell：! 開頭 → 展開 @ 然後執行
@@ -282,7 +282,7 @@ class ChatManager:
                 "    模型回覆若附：\n"
                 "      <<<WRITE 路徑\\n...內容...\\n>>>END\n"
                 "    我會在你同意的前提下自動寫入（僅限本輪 @ 過的檔案目標）\n"
-                "離開：exit / quit / :q",
+                "離開：exit / quit / q",
                 title=f"Model • {model}   Base • {base_url}",
                 border_style="blue",
             )
