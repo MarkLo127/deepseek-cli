@@ -107,12 +107,12 @@ def show_hints(model: str, base_url: str) -> None:
     console.print(
         Panel.fit(
             "輸入訊息或指令；支援：\n"
-            "  • [bold]@<檔案|資料夾>[/] 顯示內容或清單（需同意：讀取）\n"
+            "  • [bold]@<file|folder>[/] 顯示內容或清單（需同意：讀取）\n"
             "  • [bold]!<shell>[/] 執行命令（需同意：系統指令）\n"
-            "  • [bold]:edit <path>[/] 建立/編輯（需同意：寫入；以 :wq 儲存）\n"
-            "  • [bold]:open <path>[/] 只讀開啟（需同意：讀取）\n"
-            "  • [bold]:ls <path>[/]   列目錄（需同意：讀取）\n"
-            "  • [bold]:rm <path>[/]   刪檔案（需同意：寫入）\n"
+            "  • [bold]edit <path>[/] 建立/編輯（需同意：寫入；以 wq 儲存）\n"
+            "  • [bold]open <path>[/] 只讀開啟（需同意：讀取）\n"
+            "  • [bold]ls <path>[/]   列目錄（需同意：讀取）\n"
+            "  • [bold]rm <path>[/]   刪檔案（需同意：寫入）\n"
             "離開：exit / quit / q",
             title=f"Model • {model}   Base • {base_url}",
             border_style="blue",

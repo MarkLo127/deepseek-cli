@@ -24,12 +24,12 @@ class FileManager:
             self.console.print(f"[red]無法讀取：[/]{e}")
 
     def edit_file(self, path: Path):
-        self.console.print(f"[blue]編輯：{path}[/]（輸入內容；:wq 儲存）")
+        self.console.print(f"[blue]編輯：{path}[/]（輸入內容；wq 儲存）")
         lines: List[str] = []
         while True:
             try: line = input()
             except EOFError: break
-            if line.strip()==":wq": break
+            if line.strip()=="wq": break
             lines.append(line)
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
