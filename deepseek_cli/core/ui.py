@@ -12,17 +12,15 @@ def print_help() -> None:
   /about - 關於 deepseek-cli
   /clear - 清除螢幕
   /help - 顯示
-  /quit|exit|q - 顯示
+  /quit|exit|q - 結束應用程式
   ! - shell 命令行
-
- Ctrl+C - 結束應用程式
 """
     console.print(Panel(Text(help_text.strip(), style="white"), title="Help", border_style="blue"))
 
 def print_about() -> None:
     about_text = """
- 版本                  0.3.0
- 模型                  deepseek
+    版本                  0.3.0
+    模型                  deepseek
 """
     console.print(Panel(Text(about_text.strip(), style="white"), title="About DeepSeek CLI", border_style="blue"))
 
