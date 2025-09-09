@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-deepseek = "deepseek_cli.__main__:app"
+deepseek = "deepseek_cli.main:app"
 
 [build-system]
 requires = ["hatchling"]
