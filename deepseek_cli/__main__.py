@@ -1,11 +1,12 @@
+# deepseek_cli/__main__.py
 from __future__ import annotations
 
 import os
 from pathlib import Path
 from typing import Optional
 
+import click
 import typer
-from typer.core import TyperGroup, TyperCommand
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
@@ -22,32 +23,30 @@ from .core.chat import chat_loop, model_say
 from .tool.shell import ShellRunner
 from .tool.fs import FileManager
 
+
 from openai import OpenAI
 OpenAI = None  # type: ignore
 
 
-# ──────────── 讓所有 --help 的圖示固定在最上方且只有一次（ANSI 藍色） ────────────
+# ──────────── 自訂 --help：讓 Logo 永遠置頂、且只出現一次 ────────────
 ANSI_BLUE_BOLD = "\033[1;34m"
 ANSI_RESET = "\033[0m"
 
-class BannerGroup(TyperGroup):
-    def get_help(self, ctx):  # type: ignore[override]
-        base = super().get_help(ctx)
-        return f"{ANSI_BLUE_BOLD}{ASCII_DEEPSEEK}{ANSI_RESET}\n\n{base}"
-
-class BannerCommand(TyperCommand):
-    def get_help(self, ctx):  # type: ignore[override]
-        base = super().get_help(ctx)
-        return f"{ANSI_BLUE_BOLD}{ASCII_DEEPSEEK}{ANSI_RESET}\n\n{base}"
-# ───────────────────────────────────────────────────────────────────────────────
+def print_help_top_and_exit() -> None:
+    """在任何指令的 --help/-h 進來時呼叫：先印藍色 Logo，再印該指令的說明。"""
+    ctx = click.get_current_context(silent=True)
+    click.echo(f"{ANSI_BLUE_BOLD}{ASCII_DEEPSEEK}{ANSI_RESET}\n")
+    if ctx is not None and ctx.command is not None:
+        click.echo(ctx.get_help())
+    raise typer.Exit(0)
 
 
-# 根 app
-app = typer.Typer(cls=BannerGroup, add_completion=False, no_args_is_help=False)
+# 根 app：關閉預設 help（我們用自訂的 --help/-h）
+app = typer.Typer(add_completion=False, add_help_option=False, no_args_is_help=False)
 console = Console()
 
-# 子群組：config（模仿 gemini-cli 的階層）
-config_app = typer.Typer(cls=BannerGroup, add_completion=False, no_args_is_help=True)
+# 子群組：config（同樣關閉預設 help）
+config_app = typer.Typer(add_completion=False, add_help_option=False, no_args_is_help=True)
 app.add_typer(config_app, name="config")
 
 
@@ -59,7 +58,7 @@ def get_client(cfg: dict):
 
 
 def _wizard(existing: Optional[dict] = None) -> dict:
-    """互動式編輯（提供預設值、不強迫輸入），用於 config edit / 首次初始化。"""
+    """互動式編輯（提供預設值、不強迫輸入），用於首次初始化或 config edit。"""
     cfg = normalize_with_defaults(existing or {})
 
     console.print(Panel.fit("歡迎使用 [bold blue]DeepSeek CLI[/] 設定精靈。", border_style="blue"))
@@ -86,7 +85,7 @@ def _wizard(existing: Optional[dict] = None) -> dict:
 
 
 def ensure_config(force: bool = False) -> dict:
-    """維持舊行為：首次或強制時走精靈，否則使用現有設定。"""
+    """首次或 force 時走精靈，否則使用現有設定。"""
     current = load_config()
     if (current and not force):
         current = normalize_with_defaults(current)
@@ -204,20 +203,31 @@ def repl_with_tools(cfg: dict) -> None:
     save_config(consent.cfg)
 
 
-# ─────────────────────────────────────────── Root / Chat / Setup（別名） ───────────────────────────────────────────
+# ─────────────────────────────────────────── Root / Chat ───────────────────────────────────────────
 @app.callback(invoke_without_command=True)
-def main(ctx: typer.Context):
+def main(
+    ctx: typer.Context,
+    help_: bool = typer.Option(False, "--help", "-h", is_flag=True, is_eager=True, help="Show this message and exit."),
+):
+    # 自訂 --help：任何時候優先處理並結束
+    if help_:
+        print_help_top_and_exit()
     # 有子指令就不要印（避免重覆）
     if ctx.invoked_subcommand is not None:
         return
+    # 進 REPL：印一次 Rich 圖示
     print_banner()
     cfg = ensure_config()
     repl_with_tools(cfg)
 
 
-@app.command(cls=BannerCommand)
-def chat():
+@app.command(add_help_option=False)
+def chat(
+    help_: bool = typer.Option(False, "--help", "-h", is_flag=True, is_eager=True, help="Show this message and exit."),
+):
     """單純聊天模式。"""
+    if help_:
+        print_help_top_and_exit()
     print_banner()
     cfg = ensure_config()
     cfg = normalize_with_defaults(cfg)
@@ -225,19 +235,24 @@ def chat():
     chat_loop(console, cfg["model"], client, cfg["base_url"])
 
 
-@app.command(cls=BannerCommand)
-def setup():
-    """[已棄用] 請改用： deepseek config edit"""
-    print_banner()
-    console.print("[yellow]提示：`deepseek setup` 已棄用，改為 `deepseek config edit`。[/]")
-    _ = ensure_config(force=True)
-    console.print("[green]已更新設定[/]")
+# ─────────────────────────────────────────── Config 子指令（整合設定功能） ───────────────────────────────────────────
+@config_app.callback(invoke_without_command=True)
+def config_root(
+    ctx: typer.Context,
+    help_: bool = typer.Option(False, "--help", "-h", is_flag=True, is_eager=True, help="Show this message and exit."),
+):
+    if help_ or ctx.invoked_subcommand is None:
+        # 顯示 config 群組說明（Logo 置頂）
+        print_help_top_and_exit()
 
 
-# ─────────────────────────────────────────── Config 子指令（類 gemini-cli） ───────────────────────────────────────────
-@config_app.command("show", cls=BannerCommand)
-def config_show():
+@config_app.command("show", add_help_option=False)
+def config_show(
+    help_: bool = typer.Option(False, "--help", "-h", is_flag=True, is_eager=True, help="Show this message and exit."),
+):
     """顯示目前設定。"""
+    if help_:
+        print_help_top_and_exit()
     print_banner()
     cfg = normalize_with_defaults(load_config() or {})
     safe = dict(cfg)
@@ -259,29 +274,33 @@ def config_show():
     )
 
 
-@config_app.command("set", cls=BannerCommand)
+@config_app.command("set", add_help_option=False)
 def config_set(
     key: str = typer.Argument(..., help="要設定的鍵，例如 model / base_url / api_key"),
     value: str = typer.Argument(..., help="該鍵的新值"),
+    help_: bool = typer.Option(False, "--help", "-h", is_flag=True, is_eager=True, help="Show this message and exit."),
 ):
     """以鍵值方式更新設定（非互動式）。"""
+    if help_:
+        print_help_top_and_exit()
     print_banner()
     cfg = normalize_with_defaults(load_config() or {})
-    # 允許常見鍵，其他鍵也可寫入（保持彈性）
     cfg[key] = value
     save_config(cfg)
     console.print(f"[green]✓ 已更新[/] {key} = {value}")
 
 
-@config_app.command("unset", cls=BannerCommand)
+@config_app.command("unset", add_help_option=False)
 def config_unset(
     key: str = typer.Argument(..., help="要刪除的鍵，例如 api_key"),
+    help_: bool = typer.Option(False, "--help", "-h", is_flag=True, is_eager=True, help="Show this message and exit."),
 ):
     """刪除某個鍵（例如移除 api_key）。"""
+    if help_:
+        print_help_top_and_exit()
     print_banner()
     cfg = normalize_with_defaults(load_config() or {})
     if key in cfg:
-        # 刪掉之後回到預設行為（例如 base_url 會由 normalize 填預設）
         cfg.pop(key)
         cfg = normalize_with_defaults(cfg)
         save_config(cfg)
@@ -290,9 +309,13 @@ def config_unset(
         console.print(f"[yellow]{key} 不存在，無變更[/]")
 
 
-@config_app.command("edit", cls=BannerCommand)
-def config_edit():
-    """互動式設定精靈（取代 setup）。"""
+@config_app.command("edit", add_help_option=False)
+def config_edit(
+    help_: bool = typer.Option(False, "--help", "-h", is_flag=True, is_eager=True, help="Show this message and exit."),
+):
+    """互動式設定精靈。"""
+    if help_:
+        print_help_top_and_exit()
     print_banner()
     current = load_config() or {}
     cfg = _wizard(current)
