@@ -90,21 +90,27 @@ def print_banner() -> None:
     console.print(render_banner())
 
 
-from .core.ui import print_help, print_about, print_quit_summary
-
-def show_startup_info() -> None:
-    console.print("Tips for getting started:", style="bold")
-    tips = """1. Ask questions, edit files, or run commands.
-2. Be specific for the best results.
-3. Create DEEPSEEK.md files to customize your interactions with DeepSeek.
-4. /help for more information."""
-    console.print(tips)
-    console.print()
+def show_hints(model: str, base_url: str) -> None:
+    console.print(
+        Panel.fit(
+            "輸入訊息或指令；支援：\n"
+            "  • [bold]@<檔案|資料夾>[/] 顯示內容或清單（需同意：讀取）\n"
+            "  • [bold]!<shell>[/] 執行命令（需同意：系統指令）\n"
+            "  • [bold]:edit <path>[/] 建立/編輯（需同意：寫入；以 :wq 儲存）\n"
+            "  • [bold]:open <path>[/] 只讀開啟（需同意：讀取）\n"
+            "  • [bold]:ls <path>[/]   列目錄（需同意：讀取）\n"
+            "  • [bold]:rm <path>[/]   刪檔案（需同意：寫入）\n"
+            "離開：exit / quit / q",
+            title=f"Model • {model}   Base • {base_url}",
+            border_style="blue",
+        )
+    )
 
 
 def repl_with_tools(cfg: dict) -> None:
     """主 REPL：聊天 + shell + 檔案操作（皆需使用者授權）。"""
     model = cfg.get("model", DEFAULT_MODEL)
+    base_url = cfg.get("base_url") or DEFAULT_BASEURL
     client = get_client(cfg)
 
     consent = ConsentManager(console, cfg)
@@ -112,38 +118,18 @@ def repl_with_tools(cfg: dict) -> None:
     fs = FileManager(console)
 
     enable_tab_completion()
-    show_startup_info()
+    show_hints(model, base_url)
 
     while True:
         try:
-            s = Prompt.ask("  >").strip()
-            console.print(Panel(f"  > {s}", border_style="blue", expand=False))
+            s = Prompt.ask("[bold blue]›[/]").strip()
         except (EOFError, KeyboardInterrupt):
             console.print()
-            print_quit_summary()
             break
         if not s:
             continue
-
-        if s.lower().startswith("/"):
-            command = s.lower().split()[0]
-            if command == "/quit" or command == "/exit":
-                print_quit_summary()
-                break
-            elif command == "/help":
-                print_help()
-                continue
-            elif command == "/about":
-                print_about()
-                continue
-            elif command == "/clear":
-                console.clear()
-                print_banner()
-                show_startup_info()
-                continue
-            else:
-                console.print(f"[red]Unknown command: {command}[/red]")
-                continue
+        if s.lower() in {"exit", "quit", "q"}:
+            break
 
         # @path
         if s.startswith("@"):
@@ -197,10 +183,8 @@ def repl_with_tools(cfg: dict) -> None:
             continue
 
         # 其他 → 當作聊天
-        with console.status("[bold green]DeepSeek thinking...[/]"):
-            reply = model_say(get_client(cfg), model, s)
-        console.print(Panel(f"✦ {reply}", border_style="magenta", expand=False))
-
+        reply = model_say(get_client(cfg), model, s)
+        console.print(Text(reply, style="bold cyan"))
 
     # 落盤記錄可能更新的永久授權
     save_config(consent.cfg)
