@@ -13,7 +13,7 @@ def _path_candidates(text: str):
 
 def _completion_hook(text, state):
     buf = readline.get_line_buffer().lstrip()
-    for head in (":edit ", ":open ", ":ls ", ":rm "):
+    for head in ("edit ", "open ", "ls ", "rm "):
         if buf.startswith(head):
             after = buf[len(head):]
             cands = _path_candidates(after)
