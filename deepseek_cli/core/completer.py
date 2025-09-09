@@ -13,11 +13,6 @@ def _path_candidates(text: str):
 
 def _completion_hook(text, state):
     buf = readline.get_line_buffer().lstrip()
-    for head in ("edit ", "open ", "ls ", "rm "):
-        if buf.startswith(head):
-            after = buf[len(head):]
-            cands = _path_candidates(after)
-            return cands[state] if state < len(cands) else None
     if buf.startswith("@"):
         cands = ["@" + c for c in _path_candidates(buf[1:])]
         return cands[state] if state < len(cands) else None
