@@ -9,27 +9,25 @@ def print_help() -> None:
  Basics:
 
   Commands:
-  /about - show version info
-  /clear - clear the screen and conversation history
-  /help - for help on deepseek-cli
-  /quit - exit the cli
-  ! - shell command
+  /about - 關於 deepseek-cli
+  /clear - 清除螢幕
+  /help - 顯示
+  /quit|exit|q - 顯示
+  ! - shell 命令行
 
- Keyboard Shortcuts:
- Ctrl+C - Quit application
+ Ctrl+C - 結束應用程式
 """
     console.print(Panel(Text(help_text.strip(), style="white"), title="Help", border_style="blue"))
 
 def print_about() -> None:
     about_text = """
- Version                  0.3.0
- Model                        deepseek-chat
- Auth Method                  api_key,base_url
+ 版本                  0.3.0
+ 模型                  deepseek
 """
     console.print(Panel(Text(about_text.strip(), style="white"), title="About DeepSeek CLI", border_style="blue"))
 
 def print_quit_summary() -> None:
     summary_text = """
- DeepSeek is powering down. Goodbye!
+ DeepSeek 已退出，掰掰！
 """
     console.print(Panel(Text(summary_text.strip(), style="white"), title="Session Summary", border_style="blue"))
